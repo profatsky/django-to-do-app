@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<div class="card-header">
+    <div>
+        <h1>Привет, {{ request.user }}</h1>
+        <h3>Незавершенных задач: {{count}}</h3>
+    </div>
+    <a href="{% url 'logout' %}">Выйти</a>
+</div>
+
+
+<div id="search-add-wrapper">
+    <form method="GET" style="display: flex;">
+        <input type='text' name='search-area' placeholder="Введите название задачи" value="{{ search_input }}">
+        <input class="button" type="submit" value='Поиск'>
+    </form>
+    {% if task_list %}
+    <a id="add-link" href="{% url 'task-create' %}">&#x2b;</a>
+    {% endif %}
+</div>
+
+
+<form style="display: none;" id="reorderForm" method="post" action="{% url 'task-reorder' %}">
+    {% csrf_token %}
+    <input type="hidden" id="positionInput" name="position">
+</form>
+
+
+<div id="tasklist" class="task-items-wrapper">
+    {% for task in task_list %}
+    <div class="task-wrapper" data-position="{{ task.pk }}">
+        <div class="task-title">
+            {% if task.is_complete %}
+            <div class="task-complete-icon"></div>
+            <div class="completed-task">
+                <a href="{% url 'task-update' task.pk %}">{{ task }}</a>
+            </div>
+            {% else %}
+            <div class="task-incomplete-icon"></div>
+            <a href="{% url 'task-update' task.pk %}">{{ task }}</a>
+            {% endif %}
+        </div>
+        <div class="task-controls">
+            <a class="delete-link" href="{% url 'task-delete' task.pk %}">&#215;</a>
+            <span class="handle">&#10247;</span>
+        </div>
+    </div>
+
+    {% empty %}
+    <div style="text-align: center; padding-bottom: 10px; line-height: 1em;">
+        <h3>Ни одной задачи не найдено</h3>
+        <h3>Создайте <a style="text-decoration: none; color: #e53935;" href="{% url 'task-create' %}">новую задачу</a> !
+        </h3>
+    </div>
+    {% endfor %}
+</div>
+
+<script src="{% static 'js/ordering.js' %}"></script>
+{% endblock content %}

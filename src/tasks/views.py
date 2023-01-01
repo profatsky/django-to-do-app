@@ -1,11 +1,13 @@
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
+from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, UpdateView, DeleteView
+from django.views import View
+from django.views.generic import CreateView, ListView, UpdateView, DeleteView
 
-from .forms import CustomUserCreationForm
+from .forms import CustomUserCreationForm, PositionForm
 from .models import Task
 
 
@@ -34,6 +36,28 @@ class UserRegisterView(CreateView):
         return super().get(*args, **kwargs)
 
 
+class TaskListView(LoginRequiredMixin, ListView):
+    template_name = 'tasks/task_list.html'
+    model = Task
+    context_object_name = 'task_list'
+    login_url = 'login'
+
+    def get_queryset(self):
+        return self.model.objects.filter(user=self.request.user.pk)
+
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['count'] = context[self.context_object_name].filter(is_complete=False).count()
+
+        search_input = self.request.GET.get('search-area') or ''
+        if search_input:
+            context['task_list'] = context['task_list'].filter(
+                title__contains=search_input)
+        context['search_input'] = search_input
+
+        return context
+
+
 class TaskCreateView(LoginRequiredMixin, CreateView):
     template_name = 'tasks/task_form.html'
     model = Task
@@ -60,3 +84,13 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_queryset(self):
         return self.model.objects.filter(user=self.request.user.pk)
+
+
+class TaskReorderView(View):
+    def post(self, request):
+        form = PositionForm(request.POST)
+        if form.is_valid():
+            position_list = form.cleaned_data["position"].split(',')
+            with transaction.atomic():
+                self.request.user.set_task_order(position_list)
+        return redirect(reverse_lazy('task_list'))
